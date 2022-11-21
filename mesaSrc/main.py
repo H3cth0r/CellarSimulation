@@ -8,12 +8,14 @@ def agent_PT(agent):
 		PT = {"Shape": "rect","Color": "grey","Filled": "true","Layer": 0,"w": 1,"h":1}
 	elif type(agent) == StackAgent:
 		PT = {"Shape": "rect","Color": "blue","Filled": "true","Layer": 0,"w": 1,"h":1}
+	elif type(agent) == NegotiatorAgent:
+		PT = {"Shape": "circle", "Color": "red", "Filled": "true", "Layer": 0, "r": 1}
 	else:
-		PT = {"Shape": "rect","Color": "green","Filled": "true","Layer": 0,"w": 1,"h":1}
+		PT = {"Shape": "rect","Color": "red","Filled": "true","Layer": 0,"w": 1,"h":1}
 	return PT
 
 
-grid	=	ms.visualization.CanvasGrid(agent_PT, 16, 11, 800, 400)
+grid	=	ms.visualization.CanvasGrid(agent_PT, 16, 11, 600, 400)
 
 chart_currents	=	ms.visualization.ChartModule(
 	[],

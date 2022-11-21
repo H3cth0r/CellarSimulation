@@ -13,7 +13,7 @@ class CellarModel(ms.Model):
 		self.schedule		=	ms.time.StagedActivation(self, self.model_stages, shuffle=False)
 
 		# Configuration of Grid
-		self.grid		=	ms.space.MultiGrid(16, 11, torus=True)
+		self.grid		=	ms.space.MultiGrid(16, 11, torus=False)
 		self.direction		=	[
 					[1,  0],
 					[0,  1],
@@ -41,7 +41,11 @@ class CellarModel(ms.Model):
 		for i in points_stacks:
 			SA = StackAgent(i[0], self)
 			self.grid.place_agent(SA, i)
-			
+		Point_neg = [(0, 0)]
+		for i in Point_neg:
+			NR = NegotiatorAgent(0, self)
+			self.schedule.add(NR)
+			self.grid.place_agent(NR, (0, 10))
 
 
 
