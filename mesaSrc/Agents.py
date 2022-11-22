@@ -1,4 +1,5 @@
 import mesa as ms
+from random import choice, randrange
 from math import sqrt
 
 # Creating agent for representing the Shelves 
@@ -101,6 +102,63 @@ class NegotiatorAgent(ms.Agent):
 
 	def stage_two(self):
 		self.move()
+
+# Agent Random Robot Agent
+class RandomRobotAgent(ms.Agent):
+	def __init__(self, id_t, model, stacks):
+		super().__init__(id_t, model)
+		self.id 		= 	id_t
+		self.busy 		=	True
+		self.prev 		=	-1
+		self.carrying	=	False
+
+	def checkforagent(self):
+		directions = self.model.grid.get_neighborhood(self.pos, False, False, 1)
+		neighborAgent = self.model.grid.get_neighbors(self.pos, False, False, 1)
+		print(len(directions))
+		print(directions)
+		for i in neighborAgent:
+			if isinstance(i, ObjectAgent) and self.carrying == False:
+				self.carrying = True
+				self.prev = -1
+				self.model.grid.remove_agent(i)
+			elif isinstance(i, StackAgent) and self.carrying == True:
+				self.carrying = False
+				self.prev = -1
+			else:
+				continue
+			
+		while(len(directions) > 1):
+			randomDir = randrange(0, len(directions))
+			nextmove = self.model.grid.get_cell_list_contents([directions[randomDir]])
+			nextMoveIsValid = True
+			for i in nextmove:
+				if not(isinstance(i, ObjectAgent)):
+					directions.remove(directions[randomDir])
+					nextMoveIsValid = False
+					break
+			if nextMoveIsValid:
+				return directions[randomDir]
+
+		return None
+			
+				
+	def move(self):
+		agents = self.model.grid.get_neighborhood(self.pos, False, False, 1)
+		newdir = self.checkforagent()
+
+		if (newdir != None):
+			self.model.grid.move_agent(self, newdir)
+		
+		
+
+	def stage_one(self):
+		pass
+
+	def stage_two(self):
+		self.move()
+
+
 	
 # Agent Robot Agent
 class RobotAgent(ms.Agent):

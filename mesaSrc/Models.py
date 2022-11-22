@@ -1,5 +1,5 @@
 import mesa as ms
-from Agents import ShelveAgent, ObjectAgent, NegotiatorAgent, RobotAgent, StackAgent
+from Agents import ShelveAgent, ObjectAgent, NegotiatorAgent, RobotAgent, StackAgent, RandomRobotAgent
 
 def something(model):
 	return 1
@@ -55,6 +55,12 @@ class CellarModel(ms.Model):
 		points_robots = [(4, 2), (11, 2), (4, 8), (11, 8)]
 		robot_list = []
 		for i in points_robots:
+			Rra = RandomRobotAgent(self.next_id(), self, stackList)
+			robot_list.append(Rra)
+			self.schedule.add(Rra)
+			self.grid.place_agent(Rra, i)
+ 
+		"""for i in points_robots:
 			RA = RobotAgent(self.next_id(), self, stackList)
 			robot_list.append(RA)
 			self.schedule.add(RA)
@@ -65,7 +71,7 @@ class CellarModel(ms.Model):
 		for i in points_neg:
 			NA = NegotiatorAgent(self.next_id(), self, robot_list)
 			self.schedule.add(NA)
-			self.grid.place_agent(NA, i)
+			self.grid.place_agent(NA, i)"""
 
 		for i in range(nBoxes):
 			OA = ObjectAgent(self.next_id(), self)
