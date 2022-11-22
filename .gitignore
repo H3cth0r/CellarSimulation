@@ -1,4 +1,5 @@
-/unitySrc
+unitySrc/
+mesaSrc/__pycache__/
 
 # This .gitignore file should be placed at the root of your Unity project directory
 #
