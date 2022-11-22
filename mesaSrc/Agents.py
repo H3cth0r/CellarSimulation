@@ -21,22 +21,42 @@ class ObjectAgent(ms.Agent):
 
 # Negotiator Agent
 class NegotiatorAgent(ms.Agent):
-	def __init__(self, id_t, model):
+	def __init__(self, id_t, model, robots):
 		super().__init__(id_t, model)
-		self.id		=	id_t
-		self.speed 	=	1
-		self.stage  = 	0
-		self.counter=	0
+		self.id	= id_t
+		self.speed = 1
+		self.stage = 0
+		self.counter = 0
+		self.robots = robots
+		self.dispatchedBoxes = []
+		self.creatingContract = False
+
+	def createContract(self, box):
+		if box.unique_id in self.dispatchedBoxes:
+			return False
+
+		minDist = 10000
+		luckyRobot = None
+		for robot in self.robots:
+			toCompare = robot.offerContract(box)
+			if toCompare >= 0 and toCompare < minDist:
+				minDist = toCompare
+				luckyRobot = robot
+		
+		if luckyRobot != None:
+			luckyRobot.signContract(box.pos)
+			self.dispatchedBoxes.append(box.unique_id)
+		return True
 
 	def move(self):
-		boxes = self.model.grid.get_neighbors(self.pos, True, False, 1)
-		moveOrNot = True
-		for i in boxes:
-			Box = isinstance(i, ObjectAgent)
-			if(Box == True):
-				moveOrNot = False
+		agents = self.model.grid.get_neighbors(self.pos, True, False, 1)
+		self.creatingContract = False
+		for obj in agents:
+			boxFound = isinstance(obj, ObjectAgent)
+			if boxFound:
+				self.creatingContract = self.createContract(obj)
 		
-		if (moveOrNot == True):
+		if not self.creatingContract:
 			if (((self.pos[0] == 0) and (self.pos[1] == 0)) or (self.stage == 4)):
 				self.stage = 4
 				if (self.pos[1] < 10):
@@ -90,7 +110,7 @@ class RobotAgent(ms.Agent):
 		self.busy   =   False
 		self.destination = None
 		self.direction = 0
-		self.prev = 0 # 0 = up, 1 = down, 2 = left, 3 = right
+		self.prev = -1 # 0 = up, 1 = down, 2 = left, 3 = right
 		self.conflictedWith = -1
 		self.carrying = False
 		self.stacks = stacks
@@ -99,7 +119,7 @@ class RobotAgent(ms.Agent):
 		if self.busy or self.carrying:
 			return -1
 		else:
-			return sqrt((box.pos[0] - self.pos[0])^2 + (box.pos[1] - self.pos[1])^2)
+			return sqrt((box.pos[0] - self.pos[0])**2 + (box.pos[1] - self.pos[1])**2)
 
 	def signContract(self, dest):
 		self.destination = dest
@@ -109,7 +129,9 @@ class RobotAgent(ms.Agent):
 		minDist = 10000
 		nearestStackPos = (-1, -1)
 		for stack in self.stacks:
-			toCompare = sqrt((stack.pos[0] - self.pos[0])^2 + (stack.pos[1] - self.pos[1])^2)
+			prevSqrt = (stack.pos[0] - self.pos[0])**2 + (stack.pos[1] - self.pos[1])**2
+			print(f"prev to sqrt: {prevSqrt}")
+			toCompare = sqrt((stack.pos[0] - self.pos[0])**2 + (stack.pos[1] - self.pos[1])**2)
 			if toCompare < minDist:
 				nearestStackPos = stack.pos
 				minDist = toCompare
@@ -126,7 +148,17 @@ class RobotAgent(ms.Agent):
 		directions = []
 		if dx == 0 and dy == 0:
 			# arrived at destination
-			return
+			obstacles = self.model.grid.get_cell_list_contents(newPos)
+			for obstacle in obstacles:
+				if isinstance(obstacle, ObjectAgent):
+					# grab the box
+					self.carrying = True
+					self.prev = -1
+					self.model.grid.remove_agent(obstacle) ### CHANGE TO METHOD
+					# look for nearest stack
+					self.destination = self.nearestStack()
+					return
+			directions = [0, 1, 2, 3]
 		elif dx == 0:
 			if dy > 0:
 				directions = [0, 3, 2, 1]
@@ -172,17 +204,25 @@ class RobotAgent(ms.Agent):
 		}
 		newPos = (-1, -1)
 		self.conflictedWith = -1
-		conflicting = True
-		while conflicting:
-			conflicting = False
+		tryAgain = True
+		while tryAgain:
+			print(f"directions: {directions}")
 			for direction in directions:
+				print(f"Trying direction {direction}")
 				if direction == self.prev and len(directions) > 1:
+					if direction == self.prev:
+						print(f"Direction {direction} is prev")
 					continue
 				v = dirToVec[direction]
 				newPos = (self.pos[0] + v[0], self.pos[1] + v[1])
 				newDir = direction
 				newPosIsValid = True
+				if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
+					print(f"Direction {direction} is out of bounds")
+					newPosIsValid = False
+					continue
 				obstacles = self.model.grid.get_cell_list_contents(newPos)
+				
 				for obstacle in obstacles:
 					print(f"When trying to move to direction {direction}, object {obstacle} was found")
 					if isinstance(obstacle, ObjectAgent):
@@ -190,9 +230,11 @@ class RobotAgent(ms.Agent):
 						if self.destination == obstacle.pos:
 							# grab the box
 							self.carrying = True
+							self.prev = -1
 							self.model.grid.remove_agent(obstacle) ### CHANGE TO METHOD
 							# look for nearest stack
 							self.destination = self.nearestStack()
+							return
 						else:
 							#ignore box
 							continue
@@ -206,7 +248,6 @@ class RobotAgent(ms.Agent):
 							# if robot obstacle is already conflicted with me or if it's not active,
 							# i should continue to look for another place to move
 							newPosIsValid = False
-							conflicting = True
 							break
 						else:
 							# if robot obstacle is not conflicted with me, i should wait and see if
@@ -219,17 +260,28 @@ class RobotAgent(ms.Agent):
 						self.carrying = False
 						self.destination = None
 						self.busy = False
+						self.prev = -1
+						return
 					else:
 						# obstacle wasn't a robot, so i should continue to look for another place to 
 						# move
 						newPosIsValid = False
 						break
+
+				print(f"Out of for")
+				print(f"new pos is valid: {newPosIsValid}")	
 				if newPosIsValid:
+
 					# if newPose is valid, we don't need to look for somewhere else to move
 					break
-			if conflicting:
+			if self.prev != -1 and not newPosIsValid: 
 				directions = [self.prev]
+				tryAgain = 1
+				self.prev = -1
+			else:
+				tryAgain = False
 		
+		print(f"Moving to: {newPos}")
 		if newPos[0] != -1:
 			self.model.grid.move_agent(self, newPos)
 			self.prev = prevDict[newDir]
