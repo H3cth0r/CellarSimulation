@@ -8,7 +8,7 @@ def getDeactivatedRobots(model):
     return sum([1 for agent in model.schedule.agents if isinstance(agent, RobotAgent) and not agent.busy])
 
 def getRemainingBoxes(model):
-	return sum([1 for agent in model.schedule.agents if isinstance(agent, ObjectAgent)])
+	return sum([1 for agent in model.boxList if isinstance(agent, ObjectAgent) and agent.pos != None])
 
 class CellarModel(ms.Model):
 	def __init__(self, nBoxes):
@@ -53,7 +53,7 @@ class CellarModel(ms.Model):
 				for x in shelves:
 					
 					if x not in points_stacks:
-						print(f"Adding shelve: {x}")
+						#print(f"Adding shelve: {x}")
 						SA = ShelveAgent(x[0], self)
 						self.grid.place_agent(SA, x)	
 				input_row = False
@@ -76,13 +76,11 @@ class CellarModel(ms.Model):
 			self.schedule.add(NA)
 			self.grid.place_agent(NA, i)
 
+		self.boxList = []
 		for i in range(nBoxes):
 			OA = ObjectAgent(self.next_id(), self)
 			self.grid.place_agent(OA, self.grid.find_empty())
-		
-		OA = ObjectAgent(self.next_id(), self)
-		self.grid.place_agent(OA, (11, 10))
-
+			self.boxList.append(OA)
 		"""
 		RA = RobotAgent(self.next_id(), self, stackList)
 		RA.signContract((15, 7))
@@ -102,4 +100,5 @@ class CellarModel(ms.Model):
 		self.grid.place_agent(OA, (2, 6))
 		"""
 	def step(self):
+		self.datacollector.collect(self)
 		self.schedule.step()

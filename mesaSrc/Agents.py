@@ -18,6 +18,7 @@ class ObjectAgent(ms.Agent):
 	def __init__(self, id_t, model):
 		super().__init__(id_t, model)
 		self.id		=	id_t
+		
 
 # Negotiator Agent
 class NegotiatorAgent(ms.Agent):
@@ -77,7 +78,7 @@ class NegotiatorAgent(ms.Agent):
 						newpos = (self.pos[0], self.pos[1] - self.speed)
 						self.model.grid.move_agent(self, newpos)
 						if(self.counter == 2):
-							print(self.counter)
+							#print(self.counter)
 							self.stage = 2
 							self.counter = 0
 				elif (self.stage == 2):
@@ -94,7 +95,7 @@ class NegotiatorAgent(ms.Agent):
 						if(self.counter == 2):
 							self.stage = 0
 							self.counter = 0
-							print(self.pos)
+							#print(self.pos)
 	
 	def stage_one(self):
 		pass
@@ -130,7 +131,7 @@ class RobotAgent(ms.Agent):
 		nearestStackPos = (-1, -1)
 		for stack in self.stacks:
 			prevSqrt = (stack.pos[0] - self.pos[0])**2 + (stack.pos[1] - self.pos[1])**2
-			print(f"prev to sqrt: {prevSqrt}")
+			#print(f"prev to sqrt: {prevSqrt}")
 			toCompare = sqrt((stack.pos[0] - self.pos[0])**2 + (stack.pos[1] - self.pos[1])**2)
 			if toCompare < minDist:
 				nearestStackPos = stack.pos
@@ -141,14 +142,14 @@ class RobotAgent(ms.Agent):
 		if self.destination == None:
 			return
 		
-		print(f"Searching for movements for robot {self.unique_id}")
+		#print(f"Searching for movements for robot {self.unique_id}")
 		dx = self.destination[0] - self.pos[0]
 		dy = self.destination[1] - self.pos[1]
 
 		directions = []
 		if dx == 0 and dy == 0:
 			# arrived at destination
-			obstacles = self.model.grid.get_cell_list_contents(newPos)
+			obstacles = self.model.grid.get_cell_list_contents(self.pos)
 			for obstacle in obstacles:
 				if isinstance(obstacle, ObjectAgent):
 					# grab the box
@@ -206,25 +207,27 @@ class RobotAgent(ms.Agent):
 		self.conflictedWith = -1
 		tryAgain = True
 		while tryAgain:
-			print(f"directions: {directions}")
+			#print(f"directions: {directions}")
 			for direction in directions:
-				print(f"Trying direction {direction}")
+				#print(f"Trying direction {direction}")
 				if direction == self.prev and len(directions) > 1:
+					"""
 					if direction == self.prev:
 						print(f"Direction {direction} is prev")
+					"""
 					continue
 				v = dirToVec[direction]
 				newPos = (self.pos[0] + v[0], self.pos[1] + v[1])
 				newDir = direction
 				newPosIsValid = True
 				if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
-					print(f"Direction {direction} is out of bounds")
+					#print(f"Direction {direction} is out of bounds")
 					newPosIsValid = False
 					continue
 				obstacles = self.model.grid.get_cell_list_contents(newPos)
 				
 				for obstacle in obstacles:
-					print(f"When trying to move to direction {direction}, object {obstacle} was found")
+					#print(f"When trying to move to direction {direction}, object {obstacle} was found")
 					if isinstance(obstacle, ObjectAgent):
 						# check if it's the box i was sent to carry
 						if self.destination == obstacle.pos:
@@ -239,12 +242,14 @@ class RobotAgent(ms.Agent):
 							#ignore box
 							continue
 					if isinstance(obstacle, RobotAgent):
-						print(f"Obstacle was robot {obstacle.unique_id}")
+						#print(f"Obstacle was robot {obstacle.unique_id}")
 						if (obstacle.conflictedWith == self.unique_id) or (not obstacle.busy):
+							"""
 							if obstacle.conflictedWith == self.unique_id:
 								print(f"Robot obstacle was conflicted with me")
 							elif not obstacle.busy:
 								print(f"Robot obstacle was not busy")
+							"""
 							# if robot obstacle is already conflicted with me or if it's not active,
 							# i should continue to look for another place to move
 							newPosIsValid = False
@@ -268,8 +273,8 @@ class RobotAgent(ms.Agent):
 						newPosIsValid = False
 						break
 
-				print(f"Out of for")
-				print(f"new pos is valid: {newPosIsValid}")	
+				#print(f"Out of for")
+				#print(f"new pos is valid: {newPosIsValid}")	
 				if newPosIsValid:
 
 					# if newPose is valid, we don't need to look for somewhere else to move
@@ -281,13 +286,14 @@ class RobotAgent(ms.Agent):
 			else:
 				tryAgain = False
 		
-		print(f"Moving to: {newPos}")
+		#print(f"Moving to: {newPos}")
 		if newPos[0] != -1:
 			self.model.grid.move_agent(self, newPos)
 			self.prev = prevDict[newDir]
+		"""
 		else:
-			print(f"No valid directions for robot {self.unique_id}")
-		
+			#print(f"No valid directions for robot {self.unique_id}")
+		"""
 	def stage_one(self):
 		pass
 
