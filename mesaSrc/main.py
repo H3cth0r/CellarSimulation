@@ -14,7 +14,6 @@ def agent_PT(agent):
 		PT = {"Shape": "rect","Color": "red","Filled": "true","Layer": 0,"w": 1,"h":1}
 	return PT
 
-
 grid	=	ms.visualization.CanvasGrid(agent_PT, 16, 11, 600, 400)
 
 chart_currents	=	ms.visualization.ChartModule(
