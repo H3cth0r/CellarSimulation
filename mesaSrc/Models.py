@@ -4,6 +4,12 @@ from Agents import ShelveAgent, ObjectAgent, NegotiatorAgent, RobotAgent, StackA
 def something(model):
 	return 1
 
+def getDeactivatedRobots(model):
+    return sum([1 for agent in model.schedule.agents if isinstance(agent, RobotAgent) and not agent.busy])
+
+def getRemainingBoxes(model):
+	return sum([1 for agent in model.schedule.agents if isinstance(agent, ObjectAgent)])
+
 class CellarModel(ms.Model):
 	def __init__(self, nBoxes):
 		super().__init__()
@@ -21,7 +27,10 @@ class CellarModel(ms.Model):
 					[0, -1]
 		]
 		self.datacollector = ms.DataCollector(
-			model_reporters={"something"	:	something}
+			model_reporters = {
+				"Deactivated Robots" : getDeactivatedRobots,
+				"Remaining Boxes" : getRemainingBoxes
+				}
 		)
 		
 		# adding stacks
