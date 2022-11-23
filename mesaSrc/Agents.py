@@ -32,6 +32,7 @@ class NegotiatorAgent(ms.Agent):
 		self.robots = robots
 		self.dispatchedBoxes = []
 		self.creatingContract = False
+		self.energyUsed = 	0
 
 	def createContract(self, box):
 		if box.unique_id in self.dispatchedBoxes:
@@ -64,6 +65,7 @@ class NegotiatorAgent(ms.Agent):
 				if (self.pos[1] < 10):
 					newpos = (self.pos[0], self.pos[1] + self.speed)
 					self.model.grid.move_agent(self, newpos)
+					self.energyUsed += 1
 				else:
 					self.stage = 0
 			else:
@@ -71,6 +73,7 @@ class NegotiatorAgent(ms.Agent):
 					if(self.pos[0] < 15):
 						newpos = (self.pos[0] + self.speed, self.pos[1])
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.pos[0] == 15):
 							self.stage = 1
 				elif (self.stage == 1):
@@ -78,6 +81,7 @@ class NegotiatorAgent(ms.Agent):
 						self.counter += 1
 						newpos = (self.pos[0], self.pos[1] - self.speed)
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.counter == 2):
 							#print(self.counter)
 							self.stage = 2
@@ -86,6 +90,7 @@ class NegotiatorAgent(ms.Agent):
 					if(self.pos[0] > 0):
 						newpos = (self.pos[0] - self.speed, self.pos[1])
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.pos[0] == 0):
 							self.stage = 3
 				elif (self.stage == 3):
@@ -93,6 +98,7 @@ class NegotiatorAgent(ms.Agent):
 						self.counter += 1
 						newpos = (self.pos[0], self.pos[1] - self.speed)
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.counter == 2):
 							self.stage = 0
 							self.counter = 0
@@ -110,46 +116,60 @@ class RandomRobotAgent(ms.Agent):
 		super().__init__(id_t, model)
 		self.id 		= 	id_t
 		self.busy 		=	True
-		self.prev 		=	-1
+		self.prev 		=	(0, 0)
 		self.carrying	=	False
+		self.energyUsed = 	0
 
 	def checkforagent(self):
-		directions = self.model.grid.get_neighborhood(self.pos, False, False, 1)
+		#directions = self.model.grid.get_neighborhood(self.pos, False, False, 1)
 		neighborAgent = self.model.grid.get_neighbors(self.pos, False, False, 1)
-		print(len(directions))
-		print(directions)
 		for i in neighborAgent:
-			if isinstance(i, ObjectAgent) and self.carrying == False:
+			if isinstance(i, ObjectAgent) and not self.carrying:
 				self.carrying = True
-				self.prev = -1
+				self.prev = (0, 0)
 				self.model.grid.remove_agent(i)
-			elif isinstance(i, StackAgent) and self.carrying == True:
+			elif isinstance(i, StackAgent) and self.carrying:
 				self.carrying = False
-				self.prev = -1
+				self.prev = (0, 0)
 			else:
 				continue
 			
-		while(len(directions) > 1):
+		directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+		if self.prev != (0,0):
+			print(self.prev)
+			directions.remove((self.prev[0]*-1, self.prev[1]*-1))
+		while(len(directions) > 0):
 			randomDir = randrange(0, len(directions))
-			nextmove = self.model.grid.get_cell_list_contents([directions[randomDir]])
-			nextMoveIsValid = True
-			for i in nextmove:
-				if not(isinstance(i, ObjectAgent)):
-					directions.remove(directions[randomDir])
-					nextMoveIsValid = False
-					break
-			if nextMoveIsValid:
-				return directions[randomDir]
-
+			dir = directions[randomDir]
+			directions.remove(dir)
+			newPos = self.pos[0] + dir[0], self.pos[1] + dir[1]
+			if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
+				continue
+			obstacles = self.model.grid.get_cell_list_contents(newPos)
+			validDir = True
+			for obs in obstacles:
+				if not isinstance(obs, ObjectAgent):
+					validDir = False
+			if validDir:
+				self.prev = dir
+				return newPos
+		newPos = self.pos[0] + self.prev[0], self.pos[1] + self.prev[1]
+		if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
+			return None
+		obstacles = self.model.grid.get_cell_list_contents(newPos)
+		validDir = True
+		for obs in obstacles:
+			if not isinstance(obs, ObjectAgent):
+				validDir = False
+		if validDir:
+			return newPos
 		return None
 			
-				
 	def move(self):
-		agents = self.model.grid.get_neighborhood(self.pos, False, False, 1)
 		newdir = self.checkforagent()
-
 		if (newdir != None):
 			self.model.grid.move_agent(self, newdir)
+			self.energyUsed += 1
 		
 		
 
@@ -173,6 +193,7 @@ class RobotAgent(ms.Agent):
 		self.conflictedWith = -1
 		self.carrying = False
 		self.stacks = stacks
+		self.energyUsed = 	0
 	
 	def offerContract(self, box):
 		if self.busy or self.carrying:
@@ -348,6 +369,7 @@ class RobotAgent(ms.Agent):
 		if newPos[0] != -1:
 			self.model.grid.move_agent(self, newPos)
 			self.prev = prevDict[newDir]
+			self.energyUsed += 1
 		"""
 		else:
 			#print(f"No valid directions for robot {self.unique_id}")

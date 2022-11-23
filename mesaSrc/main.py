@@ -8,7 +8,7 @@ def agent_PT(agent):
 		PT = {"Shape": "rect","Color": "grey","Filled": "true","Layer": 1,"w": 1,"h":1}
 	elif type(agent) == StackAgent:
 		PT = {"Shape": "rect","Color": "#E8D33F","Filled": "true","Layer": 0,"w": 1,"h":1}
-	elif type(agent) == RobotAgent:
+	elif isinstance(agent, RobotAgent) or isinstance(agent, RandomRobotAgent):
 		if agent.busy:
 			if agent.carrying:
 				PT = {"Shape": "circle","Color": "#3772FF","Filled": "true","Layer": 0, "r": 1}
@@ -35,6 +35,6 @@ chart_currents	=	ms.visualization.ChartModule(
 	data_collector_name	= "datacollector"
 )
 
-server		=	ms.visualization.ModularServer(CellarModel, [grid, chart_currents], "Cellar Model", {"nBoxes":12})
+server		=	ms.visualization.ModularServer(CellarModel, [grid, chart_currents], "Cellar Model", {"nBoxes":12, "negotiatorModel": True})
 server.port	= 8521
 server.launch()
