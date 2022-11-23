@@ -1,4 +1,5 @@
 import mesa as ms
+from random import choice, randrange
 from math import sqrt
 
 # Creating agent for representing the Shelves 
@@ -18,6 +19,7 @@ class ObjectAgent(ms.Agent):
 	def __init__(self, id_t, model):
 		super().__init__(id_t, model)
 		self.id		=	id_t
+		
 
 # Negotiator Agent
 class NegotiatorAgent(ms.Agent):
@@ -30,6 +32,7 @@ class NegotiatorAgent(ms.Agent):
 		self.robots = robots
 		self.dispatchedBoxes = []
 		self.creatingContract = False
+		self.energyUsed = 	0
 
 	def createContract(self, box):
 		if box.unique_id in self.dispatchedBoxes:
@@ -62,6 +65,7 @@ class NegotiatorAgent(ms.Agent):
 				if (self.pos[1] < 10):
 					newpos = (self.pos[0], self.pos[1] + self.speed)
 					self.model.grid.move_agent(self, newpos)
+					self.energyUsed += 1
 				else:
 					self.stage = 0
 			else:
@@ -69,6 +73,7 @@ class NegotiatorAgent(ms.Agent):
 					if(self.pos[0] < 15):
 						newpos = (self.pos[0] + self.speed, self.pos[1])
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.pos[0] == 15):
 							self.stage = 1
 				elif (self.stage == 1):
@@ -76,14 +81,16 @@ class NegotiatorAgent(ms.Agent):
 						self.counter += 1
 						newpos = (self.pos[0], self.pos[1] - self.speed)
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.counter == 2):
-							print(self.counter)
+							#print(self.counter)
 							self.stage = 2
 							self.counter = 0
 				elif (self.stage == 2):
 					if(self.pos[0] > 0):
 						newpos = (self.pos[0] - self.speed, self.pos[1])
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.pos[0] == 0):
 							self.stage = 3
 				elif (self.stage == 3):
@@ -91,16 +98,88 @@ class NegotiatorAgent(ms.Agent):
 						self.counter += 1
 						newpos = (self.pos[0], self.pos[1] - self.speed)
 						self.model.grid.move_agent(self, newpos)
+						self.energyUsed += 1
 						if(self.counter == 2):
 							self.stage = 0
 							self.counter = 0
-							print(self.pos)
+							#print(self.pos)
 	
 	def stage_one(self):
 		pass
 
 	def stage_two(self):
 		self.move()
+
+# Agent Random Robot Agent
+class RandomRobotAgent(ms.Agent):
+	def __init__(self, id_t, model, stacks):
+		super().__init__(id_t, model)
+		self.id 		= 	id_t
+		self.busy 		=	True
+		self.prev 		=	(0, 0)
+		self.carrying	=	False
+		self.energyUsed = 	0
+
+	def checkforagent(self):
+		#directions = self.model.grid.get_neighborhood(self.pos, False, False, 1)
+		neighborAgent = self.model.grid.get_neighbors(self.pos, False, False, 1)
+		for i in neighborAgent:
+			if isinstance(i, ObjectAgent) and not self.carrying:
+				self.carrying = True
+				self.prev = (0, 0)
+				self.model.grid.remove_agent(i)
+			elif isinstance(i, StackAgent) and self.carrying:
+				self.carrying = False
+				self.prev = (0, 0)
+			else:
+				continue
+			
+		directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+		if self.prev != (0,0):
+			print(self.prev)
+			directions.remove((self.prev[0]*-1, self.prev[1]*-1))
+		while(len(directions) > 0):
+			randomDir = randrange(0, len(directions))
+			dir = directions[randomDir]
+			directions.remove(dir)
+			newPos = self.pos[0] + dir[0], self.pos[1] + dir[1]
+			if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
+				continue
+			obstacles = self.model.grid.get_cell_list_contents(newPos)
+			validDir = True
+			for obs in obstacles:
+				if not isinstance(obs, ObjectAgent):
+					validDir = False
+			if validDir:
+				self.prev = dir
+				return newPos
+		newPos = self.pos[0] + self.prev[0], self.pos[1] + self.prev[1]
+		if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
+			return None
+		obstacles = self.model.grid.get_cell_list_contents(newPos)
+		validDir = True
+		for obs in obstacles:
+			if not isinstance(obs, ObjectAgent):
+				validDir = False
+		if validDir:
+			return newPos
+		return None
+			
+	def move(self):
+		newdir = self.checkforagent()
+		if (newdir != None):
+			self.model.grid.move_agent(self, newdir)
+			self.energyUsed += 1
+		
+		
+
+	def stage_one(self):
+		pass
+
+	def stage_two(self):
+		self.move()
+
+
 	
 # Agent Robot Agent
 class RobotAgent(ms.Agent):
@@ -114,6 +193,7 @@ class RobotAgent(ms.Agent):
 		self.conflictedWith = -1
 		self.carrying = False
 		self.stacks = stacks
+		self.energyUsed = 	0
 	
 	def offerContract(self, box):
 		if self.busy or self.carrying:
@@ -130,7 +210,7 @@ class RobotAgent(ms.Agent):
 		nearestStackPos = (-1, -1)
 		for stack in self.stacks:
 			prevSqrt = (stack.pos[0] - self.pos[0])**2 + (stack.pos[1] - self.pos[1])**2
-			print(f"prev to sqrt: {prevSqrt}")
+			#print(f"prev to sqrt: {prevSqrt}")
 			toCompare = sqrt((stack.pos[0] - self.pos[0])**2 + (stack.pos[1] - self.pos[1])**2)
 			if toCompare < minDist:
 				nearestStackPos = stack.pos
@@ -141,14 +221,14 @@ class RobotAgent(ms.Agent):
 		if self.destination == None:
 			return
 		
-		print(f"Searching for movements for robot {self.unique_id}")
+		#print(f"Searching for movements for robot {self.unique_id}")
 		dx = self.destination[0] - self.pos[0]
 		dy = self.destination[1] - self.pos[1]
 
 		directions = []
 		if dx == 0 and dy == 0:
 			# arrived at destination
-			obstacles = self.model.grid.get_cell_list_contents(newPos)
+			obstacles = self.model.grid.get_cell_list_contents(self.pos)
 			for obstacle in obstacles:
 				if isinstance(obstacle, ObjectAgent):
 					# grab the box
@@ -206,25 +286,27 @@ class RobotAgent(ms.Agent):
 		self.conflictedWith = -1
 		tryAgain = True
 		while tryAgain:
-			print(f"directions: {directions}")
+			#print(f"directions: {directions}")
 			for direction in directions:
-				print(f"Trying direction {direction}")
+				#print(f"Trying direction {direction}")
 				if direction == self.prev and len(directions) > 1:
+					"""
 					if direction == self.prev:
 						print(f"Direction {direction} is prev")
+					"""
 					continue
 				v = dirToVec[direction]
 				newPos = (self.pos[0] + v[0], self.pos[1] + v[1])
 				newDir = direction
 				newPosIsValid = True
 				if (newPos[0] < 0 or newPos[1] < 0) or (newPos[0] >= self.model.grid.width or newPos[1] >= self.model.grid.height):
-					print(f"Direction {direction} is out of bounds")
+					#print(f"Direction {direction} is out of bounds")
 					newPosIsValid = False
 					continue
 				obstacles = self.model.grid.get_cell_list_contents(newPos)
 				
 				for obstacle in obstacles:
-					print(f"When trying to move to direction {direction}, object {obstacle} was found")
+					#print(f"When trying to move to direction {direction}, object {obstacle} was found")
 					if isinstance(obstacle, ObjectAgent):
 						# check if it's the box i was sent to carry
 						if self.destination == obstacle.pos:
@@ -239,12 +321,14 @@ class RobotAgent(ms.Agent):
 							#ignore box
 							continue
 					if isinstance(obstacle, RobotAgent):
-						print(f"Obstacle was robot {obstacle.unique_id}")
+						#print(f"Obstacle was robot {obstacle.unique_id}")
 						if (obstacle.conflictedWith == self.unique_id) or (not obstacle.busy):
+							"""
 							if obstacle.conflictedWith == self.unique_id:
 								print(f"Robot obstacle was conflicted with me")
 							elif not obstacle.busy:
 								print(f"Robot obstacle was not busy")
+							"""
 							# if robot obstacle is already conflicted with me or if it's not active,
 							# i should continue to look for another place to move
 							newPosIsValid = False
@@ -268,8 +352,8 @@ class RobotAgent(ms.Agent):
 						newPosIsValid = False
 						break
 
-				print(f"Out of for")
-				print(f"new pos is valid: {newPosIsValid}")	
+				#print(f"Out of for")
+				#print(f"new pos is valid: {newPosIsValid}")	
 				if newPosIsValid:
 
 					# if newPose is valid, we don't need to look for somewhere else to move
@@ -281,13 +365,15 @@ class RobotAgent(ms.Agent):
 			else:
 				tryAgain = False
 		
-		print(f"Moving to: {newPos}")
+		#print(f"Moving to: {newPos}")
 		if newPos[0] != -1:
 			self.model.grid.move_agent(self, newPos)
 			self.prev = prevDict[newDir]
+			self.energyUsed += 1
+		"""
 		else:
-			print(f"No valid directions for robot {self.unique_id}")
-		
+			#print(f"No valid directions for robot {self.unique_id}")
+		"""
 	def stage_one(self):
 		pass
 

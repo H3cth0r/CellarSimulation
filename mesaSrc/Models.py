@@ -1,11 +1,23 @@
 import mesa as ms
-from Agents import ShelveAgent, ObjectAgent, NegotiatorAgent, RobotAgent, StackAgent
+from Agents import ShelveAgent, ObjectAgent, NegotiatorAgent, RobotAgent, StackAgent, RandomRobotAgent
 
 def something(model):
 	return 1
 
+def getDeactivatedRobots(model):
+    return sum([1 for agent in model.schedule.agents if isinstance(agent, RobotAgent) and not agent.busy])
+
+def getRemainingBoxes(model):
+	return sum([1 for agent in model.boxList if isinstance(agent, ObjectAgent) and agent.pos != None])
+
+def getEnergyUsed(model):
+	totalEnergy = 0
+	for robot in model.robot_list:
+		totalEnergy += robot.energyUsed
+	return totalEnergy
+
 class CellarModel(ms.Model):
-	def __init__(self, nBoxes):
+	def __init__(self, nBoxes, negotiatorModel = True):
 		super().__init__()
 
 		# Configuration of stages & schedule
@@ -21,7 +33,11 @@ class CellarModel(ms.Model):
 					[0, -1]
 		]
 		self.datacollector = ms.DataCollector(
-			model_reporters={"something"	:	something}
+			model_reporters = {
+				"Deactivated Robots" : getDeactivatedRobots,
+				"Remaining Boxes" : getRemainingBoxes,
+				"Energy Used" : getEnergyUsed
+				}
 		)
 		
 		# adding stacks
@@ -44,7 +60,7 @@ class CellarModel(ms.Model):
 				for x in shelves:
 					
 					if x not in points_stacks:
-						print(f"Adding shelve: {x}")
+						#print(f"Adding shelve: {x}")
 						SA = ShelveAgent(x[0], self)
 						self.grid.place_agent(SA, x)	
 				input_row = False
@@ -54,26 +70,36 @@ class CellarModel(ms.Model):
 		# adding robots
 		points_robots = [(4, 2), (11, 2), (4, 8), (11, 8)]
 		robot_list = []
-		for i in points_robots:
-			RA = RobotAgent(self.next_id(), self, stackList)
-			robot_list.append(RA)
-			self.schedule.add(RA)
-			self.grid.place_agent(RA, i)
 		
-		# adding negotiators
-		points_neg = [(0, 10)]
-		for i in points_neg:
-			NA = NegotiatorAgent(self.next_id(), self, robot_list)
-			self.schedule.add(NA)
-			self.grid.place_agent(NA, i)
+		if negotiatorModel:
+			for i in points_robots:
+				RA = RobotAgent(self.next_id(), self, stackList)
+				robot_list.append(RA)
+				self.schedule.add(RA)
+				self.grid.place_agent(RA, i)
+			
+			# adding negotiators
+			points_neg = [(0, 10)]
+			for i in points_neg:
+				NA = NegotiatorAgent(self.next_id(), self, robot_list)
+				self.schedule.add(NA)
+				self.grid.place_agent(NA, i)
+			
+		else:
+			for i in points_robots:
+				Rra = RandomRobotAgent(self.next_id(), self, stackList)
+				robot_list.append(Rra)
+				self.schedule.add(Rra)
+				self.grid.place_agent(Rra, i)
+		
+		self.robot_list = robot_list
+		#self.robot_list.append(NA)
 
+		self.boxList = []
 		for i in range(nBoxes):
 			OA = ObjectAgent(self.next_id(), self)
 			self.grid.place_agent(OA, self.grid.find_empty())
-		
-		OA = ObjectAgent(self.next_id(), self)
-		self.grid.place_agent(OA, (11, 10))
-
+			self.boxList.append(OA)
 		"""
 		RA = RobotAgent(self.next_id(), self, stackList)
 		RA.signContract((15, 7))
@@ -93,4 +119,6 @@ class CellarModel(ms.Model):
 		self.grid.place_agent(OA, (2, 6))
 		"""
 	def step(self):
+		self.datacollector.collect(self)
+		#varianza
 		self.schedule.step()
